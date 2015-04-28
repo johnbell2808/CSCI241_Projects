@@ -1,0 +1,1790 @@
+cat BookStore.cpp
+/******************************************************************************
+ Title: Amazon Books, Redesigned and Improved
+ Name: John Bell
+ Course: CSCI241
+ Instructor: Jordan Ringenberg
+ Due Date: Monday, February 16th, 2015
+
+ Description: The main file that executes and accesses the functions from
+ BookInventory.cpp. This project is an improvement of a previous project
+ with the use of dynamic arrays. 
+ The main function takes creates a BookInventoryobject, 
+ reads in the data file, prints the data file, takes menu input from use,
+ repeats until user desires to close program, and then writes BookInventory
+ to OilerBookList.dat file. Credit goes to Dr. Ringenberg for writing the
+ majority of the BookStore.cpp with minimal changes within the main file.
+
+ Input: User enters menu selection, and from there, based on their selection
+        they are asked for the information fields to either input info for
+a book, or a search which allows them the option to delete the
+cheapest book in the array.
+
+
+ Output: The data read in from the file is displayed for the user to see
+         with all string fields converted to upper case. The user is
+ continuously printed a menu that allows them to utilize different
+ portions of the program. Input fields are specified accordingly.
+
+
+******************************************************************************/
+#include <iostream>
+#include <iomanip>
+#include <string>
+#include "Book.h"
+#include "BookInventory.h"
+using namespace std;
+
+void printMenu();
+
+int main(){
+  
+  //creates BookInventory object with initial maxBooks size of 10
+  BookInventory Inv(10);
+  int selection = -1;
+  
+  //reads in list from file and prints 
+  Inv.ReadFromFile("OilerBookList.dat");
+  Inv.printList();
+  
+  while(selection != 0){
+    
+    printMenu();
+    cin >> selection;
+    
+    //if user input is invalid, asks user to re-enter valid input
+    while(cin.fail() || selection > 4 || selection < 0){
+      printMenu();
+      cin.clear();
+      cin.ignore(256, '\n');
+      cin >> selection;
+    }
+    if(selection == 1){
+      Inv.addBook();
+    }
+    if(selection == 2){
+      Inv.sortList();
+      Inv.printList();
+    }
+    if(selection == 3){
+      Inv.searchList();
+    }
+    if(selection == 4){
+      Inv.printList();
+    }
+  }
+  
+  //writes to same file that is read in
+  Inv.WriteToFile("OilerBookList.dat");
+
+  cout << "Application Closing..." << endl;
+  
+  return 0;
+}
+
+//function that prints menu 
+void printMenu(){
+  cout << "\n--- Menu ---";
+  cout << "\nPlease choose an option:";
+  cout << "\n1. Enter Book";
+  cout << "\n2. Sort Books by Name";
+  cout << "\n3. Search for Book";
+  cout << "\n4. List Books";
+  cout << "\n0. Exit Bookstore\n";
+}
+                                                                 
+*****************************************************************
+                                                                 
+cat BookInventory.cpp
+/******************************************************************************
+ Title: Amazon Books, Redesigned and Improved
+ Name: John Bell
+ Course: CSCI241
+ Instructor: Jordan Ringenberg
+ Due Date: Monday, February 16th, 2015
+
+ Description: The class file that implements most of the projects functions.
+ With most of the original Book class fils/header remaining the same,
+ the use of dynamic arrays is being stressed throughout this
+ update. A BookInventory class is created, and changes in max
+ number of elements allowed in respect to the parameters
+ specified (if the number of books entered equals the max,
+ the array allocates more space) while the user is
+ entering book information specified. The user can sort
+ the list of books that is stored, do a search of the
+list, and delete the cheapest book, print the list out,
+and close the program and write to the output file.
+
+Input:Data is initially read using the ReadFromFile function.
+Users enter a menu choice accordingly to the menu given.
+The addBook function allows for entering of books and the
+corresponding information being prompted. If the book is
+not successfully added, the user is notified. This function
+keeps track of the number of books in the array as well
+as the maximum number of elements. A search query is asked
+if the user chooses, and they are also asked if they would
+like to delete the cheapest book.
+
+Output: The data read in from the file is displayed for the user to see
+with all string fields converted to upper case. The user is
+continuously printed a menu that allows them to utilize different
+portions of the program. Input fields are specified accordingly.
+Functions are primarily derived functions of the previous project,
+except output is saved to a file.
+
+
+******************************************************************************/
+
+#include "Book.h"
+#include "BookInventory.h"
+#include <iostream>
+#include <iomanip>
+#include <string>
+#include <fstream>
+#include <ctype.h>
+
+using namespace std;
+
+
+//constructor that takes parameter for max
+BookInventory::BookInventory(int m){
+
+  numBooks  = 0;
+  maxBooks  = m;
+  bookArray = new Book[maxBooks];
+  
+}
+//default constructor
+BookInventory::BookInventory(){
+  numBooks = 0;
+  maxBooks = 20;
+  bookArray = new Book[maxBooks];
+}
+
+//deconstructor
+BookInventory::~BookInventory(){
+  delete[]bookArray;
+}
+
+void BookInventory::addBook(){
+
+  double fac = 1.5;
+  string n;
+  string a;
+  string con;
+  double p;
+  
+
+  //checks to see if the array needs resized
+  if (numBooks >= maxBooks){
+    UpdateMaxBooks(fac);
+  }
+  cout    << endl;
+  //clears buffer from previous cin statement
+  cin.ignore();
+  cout  << "Please enter a the book name: " ;
+  getline(cin, n);
+  //converts all strings to uppercase
+  StringToUpper(n);
+  cout    << endl;
+  cout    << "Please enter the author of the book: " ;
+  getline(cin, a);
+  StringToUpper(a);
+  cout    << endl;
+  cout    << "Please enter the condition of the book: ";
+  getline(cin, con);
+  StringToUpper(con);
+  cout    << endl;
+  cout    << "Please enter the price of the book: ";
+  cin     >> p;
+  //passes all input values to book object in array
+  bookArray[numBooks].setBook(n, a, con, p);
+  
+  //if input fails, user is notified
+  if(cin.fail()){
+    cout << "Book Adding Failed." << endl;
+  }
+  else{
+    cout << "Book Adding Successful!" << endl;
+    numBooks++;
+
+  }
+}
+
+void BookInventory::sortList(){
+
+  //bubble sort function used to sort alphabetically
+  for(int i = 0; i < numBooks; i++){
+    for(int j = (numBooks-1); j >= i; j--){
+      if(bookArray[i].getName() > bookArray[j].getName()){
+	//passes to swap book function if i is > j
+	swapBooks(bookArray[i], bookArray[j]);
+      }
+      //if book names are same, check price and sort by ascending
+      if(bookArray[i].getName() == bookArray[j].getName()){
+	if(bookArray[i].getPrice() > bookArray[j].getPrice()){
+	  swapBooks(bookArray[i], bookArray[j]);
+	}
+      }
+    }
+  }
+
+}
+
+
+
+void BookInventory::searchList(){
+
+  int  upperLim = numBooks;
+  int  lowerLim = 0;
+  int  index = 0;
+  int  cheapind = numBooks;
+  bool found = false;
+  string search;
+  string input;
+  //clears buffer after selection input
+  cin.ignore();
+  //sorts list in order to binary search
+  sortList();
+  cout << "Enter a term to search:";
+  getline(cin, search);
+  
+  while(!found && lowerLim <= upperLim){
+    //sets index in the middle of the array
+    index = (lowerLim + upperLim) / 2;
+    if (bookArray[index].getName() == search){
+      found = true;
+      //steps back and forward from the lowerLim to index
+      for (int i = lowerLim; i < index; i++){
+	if (bookArray[i].getName() == search){
+	  bookArray[i].print();
+	  //stores cheapest index
+	  if (i < cheapind){
+	    cheapind = i;
+	  }
+	}
+      }
+      bookArray[index].print();
+      //steps forward in a function
+      for (int i = (index + 1); i <= upperLim; i++){
+	if (bookArray[i].getName() == search){
+	  bookArray[i].print();
+
+	}
+      }
+    }
+    //Upper Limit is moved below index value if it is not in the top half
+    else if (bookArray[index].getName() > search){
+      upperLim = index - 1;
+    }
+    //Lower Limit is moved up one if index value is not in the bottom half
+    else if (bookArray[index].getName() < search){
+      lowerLim = index + 1;
+    }
+  }
+  if(!found){
+    cout << search << " not found." << endl;
+  }
+  //if results yield result, remove book option is given
+  else{
+    cout << "Delete the cheapest book in search results? " ;
+    cin  >> input;
+    if (input == "Y" || input == "y"){
+      removeBook(cheapind);
+    }
+  }
+
+}
+
+void BookInventory::printList(){
+  
+  cin.ignore();
+  cout    << left
+	  << setw(45) << "Name"
+	  << setw(25) << "Author"
+	  << setw(10) << "Condition"
+	  << right
+	  << setw(8)  << "Price"
+	  << endl;
+  cout    << setfill('_') << setw(87) << " " << setfill(' ')
+	  << endl;
+  //loops through booklist and calls on print function
+  for(int i = 0; i < numBooks; i++){
+    bookArray[i].print();
+  }
+}
+
+void BookInventory::swapBooks(Book &B, Book &C){
+  //declares temporary position to hold position of pending book to be swapped
+  Book temp;
+  
+  temp = B;
+  B    = C;
+  C    = temp;
+}
+
+void BookInventory::UpdateMaxBooks(double factor){
+  
+  //resizes maxBooks
+  maxBooks =  (factor * maxBooks);
+  
+  //creates pointer to store dynamic array
+  Book* copyArray = new Book[maxBooks];
+  
+  //copies over elements to pointer
+  for(int i = 0; i < numBooks; i++){
+    copyArray[i] = bookArray[i];
+  }
+  //frees up original array
+  delete[] bookArray;
+  //array points to new array
+  bookArray = copyArray;
+  
+
+}
+void BookInventory::WriteToFile(string fileName){
+  //opens output file
+  ofstream outFile;
+  outFile.open(fileName.c_str());
+  
+  if (!outFile){
+    cout << "\nCould not open " << outFile << endl;
+  }
+  //loops through array, and writes to file
+  for(int i = 0; i < numBooks; i++){
+    outFile << bookArray[i].getName()      << endl;
+    outFile << bookArray[i].getAuthor()    << endl;
+    outFile << bookArray[i].getCond()      << endl;
+    outFile << bookArray[i].getPrice()     << endl;
+  }
+  
+  outFile.close();
+  
+}
+void BookInventory::ReadFromFile(string fileName){
+  ifstream inFile;
+  inFile.open(fileName.c_str());
+  string line; 
+  double numb = 0;
+  
+  
+  double fac = 1.5;
+
+  if (!inFile){
+    cout << "\nNEW DATA FILE " ;
+    cout << "\nPress ENTER to continue." ; 
+
+  }
+  else{
+    cout << "\nPlease press enter to continue. " ;
+  }
+  //loops through array, and pulls stores in array
+  while(getline(inFile, line)){
+    StringToUpper(line);
+    bookArray[numBooks].setName(line);
+    getline(inFile, line);
+    StringToUpper(line);
+    bookArray[numBooks].setAuthor(line);
+    getline(inFile, line);
+    StringToUpper(line);
+    bookArray[numBooks].setCond(line);
+    inFile >> numb;
+    bookArray[numBooks].setPrice(numb);
+    numBooks++;
+    inFile.ignore();
+    //checks to see if array needs resizing
+    if(numBooks >= maxBooks){
+      UpdateMaxBooks(fac);
+    }
+    
+  }
+  
+  inFile.close();
+  
+}
+
+void BookInventory::removeBook(int index){
+  double fac = .75;
+  
+  //replaces cheapest index with the one above
+  //while bumping everything down
+  for(int i = index; i < numBooks - 1; i++){
+    bookArray[i] = bookArray[i + 1];
+  }
+  numBooks --; 
+  //number of maximum books is shrinked by 75%
+  if (numBooks <= (.5 * maxBooks)){
+    UpdateMaxBooks(fac);
+  }
+}
+
+void BookInventory::StringToUpper(string &str){
+  for (int i = 0; i < str.length(); i++){
+    str[i]=toupper(str[i]);
+  }
+}
+                                                                 
+*****************************************************************
+                                                                 
+cat BookInventory.h
+ /****************************************************************************
+Title:    Amazon Books, Redesigned and Improved
+  Name:    John Bell
+  Course:    CSCI241
+  Instructor:Jordan Ringenberg
+  Due Date:    Monday, February 16th, 2015
+  
+  Description: Header that declares the BookInventory, delcares its private
+  members, and declares functions to be accessed by the BookInventory.cpp.
+  
+  
+  ****************************************************************************/
+#include <iostream>
+#include <string>
+  
+  using namespace std;
+
+class BookInventory{
+ private: 
+  int     numBooks;
+  int     maxBooks;
+  Book   *bookArray;
+  void    swapBooks(Book&, Book&);
+  void    UpdateMaxBooks(double);
+  void    StringToUpper(string&); 
+ public:
+  BookInventory();
+  BookInventory(int);
+  ~BookInventory();
+  void    addBook();
+  void    sortList();
+  void    searchList();
+  void    printList();
+  void    ReadFromFile(string);
+  void    WriteToFile(string);
+  void    removeBook(int);
+};
+                                                                 
+*****************************************************************
+                                                                 
+cat Book.cpp
+/******************************************************************************
+ Title: Amazon Books, Redesigned and Improved
+ Name: John Bell
+ Course: CSCI241
+ Instructor: Jordan Ringenberg
+ Due Date: Monday, February 16th, 2015
+
+ Description: This class file implements all of the functions and constructors
+ to be called by the BookStore.cpp and Book Inventory file.
+
+
+******************************************************************************/
+
+#include "Book.h"
+#include <string>
+#include <iostream>
+#include <iomanip>
+using namespace std;
+
+//default constructor implimentation
+Book::Book(){
+  setBook("xxyyxx", "YY, XX", "New", 1.01);
+}
+//overloaded constructor implimentation
+Book::Book(string n, string a, string con, double p){
+  setBook(n, a, con, p);
+}
+//getters and setters
+string Book::getName(){
+  return name;
+}
+string Book::getAuthor(){
+  return author;
+}
+string Book::getCond(){
+  return condition;
+}
+double Book::getPrice(){
+  return price;
+}
+void Book::setName(string n){
+  name = n;
+}
+void Book::setAuthor(string a){
+  author = a;
+}
+void Book::setCond(string con){
+  condition = con;
+}
+void Book::setPrice(double p){
+  price = p;
+}
+void Book::setBook(string n, string a, string con, double p){
+  name      = n;
+  author    = a;
+  condition = con;
+  price     = p;
+}
+//print function that allows for proper formatting/spacing
+void Book::print(){
+  cout << endl;
+  cout << left
+       << setw(45) << getName()
+       << setw(25) << getAuthor()
+       << setw(10) << getCond()
+       << right    << showpoint  << setprecision(2) << fixed
+       << setw(8)  << getPrice()
+       << endl;
+}
+                                                                 
+*****************************************************************
+                                                                 
+cat Book.h
+/******************************************************************************
+ Title:    Amazon Books, Redesigned and Improved
+ Name:    John Bell
+ Course:    CSCI241
+ Instructor:Jordan Ringenberg
+ Due Date:    Monday, February 16th, 2015
+
+ Description: Header that declares the book class, delcares its private
+ members, and declares functions to be accessed by the BookStore.cpp and
+ BookInventory.cpp.
+
+
+******************************************************************************/
+#ifndef BOOK_H
+#define BOOK_H
+#include <iostream>
+#include <string>
+using namespace std;
+
+//define the Books class
+class Book {
+ private:
+  string name;
+  string author;
+  string condition;
+  double price;
+ public:
+  //default constructor
+  Book();
+  //overloaded constructor
+  Book(string, string, string, double);
+  void      setName    (string n);
+  void      setAuthor  (string a);
+  void      setCond    (string con);
+  void      setPrice   (double p);
+  string    getName();
+  string    getAuthor();
+  string    getCond();
+  double    getPrice();
+  void      print();
+  void      setBook(string, string, string, double);
+};
+#endif
+
+                                                                 
+*****************************************************************
+                                                                 
+g++ BookStore.cpp BookInventory.cpp Book.cpp -o BookStore
+                                                                 
+*****************************************************************
+                                                                 
+BookStore < ~ringenberg/15_Spring/LP2/lp2test1
+
+Please press enter to continue. Name                                         Author                   Condition    Price
+______________________________________________________________________________________ 
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Enter a term to search:MY BOOK not found.
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Enter a term to search:TEST BOOK 9 not found.
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Name                                         Author                   Condition    Price
+______________________________________________________________________________________ 
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  NEW                      AUTHOR       19.00
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Application Closing...
+                                                                 
+*****************************************************************
+                                                                 
+BookStore < ~ringenberg/15_Spring/LP2/lp2test2
+
+Please press enter to continue. Name                                         Author                   Condition    Price
+______________________________________________________________________________________ 
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  NEW                      AUTHOR       19.00
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Name                                         Author                   Condition    Price
+______________________________________________________________________________________ 
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  NEW                      AUTHOR       19.00
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Name                                         Author                   Condition    Price
+______________________________________________________________________________________ 
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  NEW                      AUTHOR       19.00
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Name                                         Author                   Condition    Price
+______________________________________________________________________________________ 
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         40.99
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  NEW                      AUTHOR       19.00
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         42.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Name                                         Author                   Condition    Price
+______________________________________________________________________________________ 
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         40.99
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  NEW                      AUTHOR       19.00
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         42.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Application Closing...
+                                                                 
+*****************************************************************
+                                                                 
+BookStore < ~ringenberg/15_Spring/LP2/lp2test3
+
+Please press enter to continue. Name                                         Author                   Condition    Price
+______________________________________________________________________________________ 
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         40.99
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  NEW                      AUTHOR       19.00
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         42.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Name                                         Author                   Condition    Price
+______________________________________________________________________________________ 
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         40.99
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  NEW                      AUTHOR       19.00
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         42.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Name                                         Author                   Condition    Price
+______________________________________________________________________________________ 
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         40.99
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  NEW                      AUTHOR       19.00
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         42.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Name                                         Author                   Condition    Price
+______________________________________________________________________________________ 
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         40.99
+
+TEST BOOK                                    AUTHOR                   USED         40.99
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  NEW                      AUTHOR       19.00
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         42.99
+
+TEST BOOK 2                                  AUTHOR                   USED         42.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Name                                         Author                   Condition    Price
+______________________________________________________________________________________ 
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         40.99
+
+TEST BOOK                                    AUTHOR                   USED         40.99
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  NEW                      AUTHOR       19.00
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         42.99
+
+TEST BOOK 2                                  AUTHOR                   USED         42.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Enter a term to search:MY BOOK not found.
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Enter a term to search:
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          20.00
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+Delete the cheapest book in search results? 
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+
+Please enter a the book name: 
+Please enter the author of the book: 
+Please enter the condition of the book: 
+Please enter the price of the book: Book Adding Successful!
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Name                                         Author                   Condition    Price
+______________________________________________________________________________________ 
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         40.99
+
+TEST BOOK                                    AUTHOR                   USED         40.99
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          20.00
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  NEW                      AUTHOR       19.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          19.00
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         42.99
+
+TEST BOOK 2                                  AUTHOR                   USED         42.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Name                                         Author                   Condition    Price
+______________________________________________________________________________________ 
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         40.99
+
+TEST BOOK                                    AUTHOR                   USED         40.99
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          20.00
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  NEW                      AUTHOR       19.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          19.00
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         42.99
+
+TEST BOOK 2                                  AUTHOR                   USED         42.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Enter a term to search:
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          20.00
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+Delete the cheapest book in search results? 
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Enter a term to search:TEST BOOK 9 not found.
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Name                                         Author                   Condition    Price
+______________________________________________________________________________________ 
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         21.99
+
+TEST BOOK                                    AUTHOR                   USED         40.99
+
+TEST BOOK                                    AUTHOR                   USED         40.99
+
+TEST BOOK 1                                  AUTHOR                   NEW          14.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          16.55
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          18.00
+
+TEST BOOK 1                                  AUTHOR                   NEW          20.00
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 1                                  AUTHOR                   USED         45.99
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          15.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          17.00
+
+TEST BOOK 2                                  NEW                      AUTHOR       19.00
+
+TEST BOOK 2                                  AUTHOR                   NEW          19.00
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         25.99
+
+TEST BOOK 2                                  AUTHOR                   USED         42.99
+
+TEST BOOK 2                                  AUTHOR                   USED         42.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         35.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+TEST BOOK 3                                  AUTHOR                   USED         44.99
+
+--- Menu ---
+Please choose an option:
+1. Enter Book
+2. Sort Books by Name
+3. Search for Book
+4. List Books
+0. Exit Bookstore
+Application Closing...
+                                                                 
+*****************************************************************
+                                                                 
+LP2_turn_in_bellj BookStore.cpp BookInventory.cpp BookInventory.h Book.cpp Book.h printout
